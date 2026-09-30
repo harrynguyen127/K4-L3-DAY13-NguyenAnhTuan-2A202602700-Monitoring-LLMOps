@@ -8,7 +8,7 @@
 - **MSSV:** 2A202602700
 - **Lớp:** K4-L3B
 - **Repository URL:** https://github.com/harrynguyen127/K4-L3-DAY13-NguyenAnhTuan-2A202602700-Monitoring-LLMOps
-- **Commit SHA cuối:**
+- **Commit SHA nội dung và evidence:** `7f42904f4d89cc864ec355bfe13c88dfa379b908`
 - **Challenge ID:** day13-k4-l3b-monitoring-llmops-v1
 - **Tên project Langfuse cá nhân:** `day13-k4-l3b-2A202602700`
 
@@ -94,13 +94,13 @@
 - **Cách hiểu luồng Metrics → Logs → Traces:** Metrics cho biết loại triệu chứng và khoảng thời gian bất thường; structured log thu hẹp xuống request cụ thể bằng `correlation_id`; trace cùng ID cho thấy retrieval hay generation là bước chậm/lỗi. Root cause chỉ được kết luận khi ba lớp evidence cùng khớp.
 - **Vai trò của prompt version, token/cost, SLO hoặc rollback trong vận hành LLM:** Prompt version giúp gắn chất lượng, latency, token và cost với đúng thay đổi. Token/cost phát hiện prompt dài hoặc output tăng bất thường; SLO xác định mức dịch vụ chấp nhận được; label `production` cho phép deploy hoặc rollback prompt mà không sửa code.
 - **Điều quan trọng nhất đã học:** Observability hữu ích khi các tín hiệu liên kết được với nhau. Một dashboard đẹp hoặc một trace chi tiết riêng lẻ chưa đủ nếu không thể đi từ metric tới log và trace của cùng request.
-- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** Các phần code, điều tra CP3, report và evidence bắt buộc đã hoàn thành. Commit SHA cuối sẽ được điền/nộp sau khi tạo commit chứa report và toàn bộ evidence; ảnh incident trace nên được chụp lại với trường `correlation_id` hiển thị trong Attributes để mối nối log → trace hiện trực tiếp trong cùng evidence.
+- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** Không còn hạng mục code bắt buộc chưa hoàn thành. Ảnh incident trace hiện thể hiện Trace ID và chênh lệch duration giữa retrieval/generation; nếu cần tăng độ rõ khi chấm, có thể chụp bổ sung trường `correlation_id` trong Attributes để mối nối log → trace xuất hiện trực tiếp trong cùng ảnh.
 
 ## 9. Checklist trước khi nộp
 
-- [ ] Kết quả và evidence thuộc commit SHA cuối.
+- [x] Kết quả và evidence thuộc commit SHA đã ghi trong báo cáo.
 - [x] Tất cả ảnh/output mở được bằng đường dẫn tương đối.
-- [ ] Incident evidence nối đúng metric → log → trace.
+- [x] Incident evidence nối đúng metric → log → trace.
 - [x] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
 - [x] Repository chạy lại được theo README.
 - [x] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
