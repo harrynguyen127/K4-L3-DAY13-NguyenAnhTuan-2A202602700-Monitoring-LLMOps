@@ -1,0 +1,4 @@
+Command: .\.venv\Scripts\python.exe -m pytest -q
+
+........................                                                 [100%]
+24 passed in 4.34s

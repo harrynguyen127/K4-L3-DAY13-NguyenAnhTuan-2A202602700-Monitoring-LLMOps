@@ -23,7 +23,7 @@
 | CP0 dashboard validator | [cp0-dashboard-validator.png](evidence/cp0-dashboard-validator.png) |
 | CP0 public tests | [cp0-pytest.png](evidence/cp0-pytest.png) |
 | CP0 Langfuse trace check | [cp0-langfuse-trace-check.png](evidence/cp0-langfuse-trace-check.png) |
-| Pytest cuối | Chưa bổ sung |
+| Pytest cuối | [01-pytest.txt](evidence/01-pytest.txt) |
 | Log validator | [02-log-validator.png](evidence/02-log-validator.png) |
 | Dashboard validator | [03-dashboard-validator.png](evidence/03-dashboard-validator.png) |
 | Structured log | [04-structured-log.png](evidence/04-structured-log.png) |
@@ -34,9 +34,9 @@
 | Prompt versions | [09-prompt-versions.png](evidence/09-prompt-versions.png) |
 | Prompt rollback | [production v2](evidence/10a-prompt-production-v2.png), [rollback production về v1](evidence/10b-prompt-rollback-v1.png) |
 | Dashboard runtime | [overview](evidence/11-dashboard-overview.png), [latency/errors](evidence/11a-dashboard-latency-errors.png), [cost/token/quality](evidence/11b-dashboard-cost-token-quality.png) |
-| Incident metric | Chưa bổ sung |
-| Incident log | Chưa bổ sung |
-| Incident trace | Chưa bổ sung |
+| Incident metric | [12-incident-metric.png](evidence/12-incident-metric.png) |
+| Incident log | [13-incident-log.png](evidence/13-incident-log.png) |
+| Incident trace | [14-incident-trace.png](evidence/14-incident-trace.png) |
 
 ## 3. Kết quả kỹ thuật
 
@@ -44,11 +44,11 @@
 |---|---|---|---|
 | `validate_logs.py` | 30/100 | 100/100 | Baseline: 28 records, 20 records thiếu required fields/enrichment và 0 correlation ID. CP1: 66 records, không thiếu field/enrichment, 31 correlation ID duy nhất và 0 PII leak. |
 | `validate_dashboard.py` | 6/6 panel | 6/6 panel | Contract YAML hợp lệ và dashboard Streamlit đọc dữ liệu thật từ `data/logs.jsonl`; xem [validator](evidence/03-dashboard-validator.png) và [runtime](evidence/11-dashboard-overview.png). |
-| `pytest` | 24 passed, 0 failed | 24 passed, 0 failed | Toàn bộ public tests hiện đạt; ảnh `01-pytest` sẽ được chụp lại trên commit cuối ở CP4. |
-| Số traces hợp lệ | 33 root observations nhìn thấy trong project cá nhân | Ít nhất 33 root observations | Evidence cho thấy trace `day13-agent-request` có root agent và hai child observation retrieval/generation; các trace prompt versioning bổ sung được tạo trong cùng project cá nhân. |
+| `pytest` | 24 passed, 0 failed | 24 passed, 0 failed | Toàn bộ public tests đạt trên trạng thái source cuối; xem [output pytest](evidence/01-pytest.txt). |
+| Số traces hợp lệ | 33 root observations nhìn thấy trong project cá nhân | Ít nhất 38 root observations | Evidence cho thấy trace `day13-agent-request` có root agent và hai child observation retrieval/generation; workload CP3 tạo thêm 5 trace trong cùng project cá nhân. |
 | Số PII leak | 0 | 0 | Validator không phát hiện PII thô; log runtime cho thấy email, điện thoại Việt Nam, CCCD và thẻ thanh toán đều được thay bằng marker `REDACTED`. |
-| Latency P95 / TTFT P95 | 1445 ms / 123 ms | 1796 ms / 50 ms | Tính trên 21 sự kiện `response_sent` trong cửa sổ dashboard 60 phút; P95 vẫn dưới SLO 3000 ms. |
-| Retrieval success rate | 100% (10/10) | 100% (21/21) | Không có retrieval failure trong workload CP2; error rate là 0%. |
+| Latency P95 / TTFT P95 | 1445 ms / 123 ms | 2653 ms / 50 ms trong workload CP3 | Năm request challenge có application latency 2652–2653 ms, đều vượt ngưỡng challenge 2000 ms; TTFT không tăng, giúp loại trừ generation là bước gây chậm. |
+| Retrieval success rate | 100% (10/10) | 100% (31/31) | Retrieval vẫn thành công về mặt chức năng; CP3 là sự cố latency, không phải retrieval failure. Năm canary sau mitigation cũng thành công. |
 
 ## 4. Logging và PII
 
@@ -75,20 +75,16 @@
 - **Cách tính error budget:** Error budget bằng `100% - 99.5% = 0.5%`. Với 10,000 request trong 28 ngày, số request được phép lỗi hoặc chậm hơn 3000 ms là `10,000 × 0.5% = 50`.
 - **Ba alert và runbook tương ứng:** `HighLatencyP95` cảnh báo khi P95 vượt 3000 ms trong 5 phút; `HighErrorRate` mức critical khi error rate vượt 2% trong 5 phút; `LowRetrievalSuccess` cảnh báo khi retrieval success dưới 90% trong 5 phút. Cả ba gửi Slack `#k4-l3b-alerts`, owner `student-2A202602700`, và có quy trình Metrics → Logs → Traces cùng mitigation trong [`config/alert_rules.yaml`](../config/alert_rules.yaml) và [`docs/alerts.md`](../docs/alerts.md).
 
-> Ví dụ cách viết error budget: "SLO 99.5% trong 28 ngày nghĩa là error budget 0.5%. Nếu workload có 10,000 request thì tối đa 50 request được phép lỗi hoặc chậm hơn ngưỡng SLO."
-
 ## 7. Điều tra challenge
 
-- **Challenge ID:**
-- **Khoảng thời gian điều tra:**
-- **Triệu chứng từ metrics:**
-- **Log line và correlation ID liên quan:**
-- **Trace ID và span gây ảnh hưởng:**
-- **Root cause:**
-- **Fix action:**
-- **Preventive measure:**
-
-> Gợi ý cách viết ngắn, không thay cho evidence thực tế: "Metric cho thấy `[latency/error/cost/quality]` bất thường trong `[khoảng thời gian]`. Log line `[event]` có `correlation_id=[...]` đại diện cho request bị ảnh hưởng. Trace cùng `correlation_id` cho thấy span `[retrieval/generation/prompt/tool]` có dấu hiệu `[chậm/lỗi/token tăng]`. Root cause là `[nguyên nhân suy ra từ evidence]`. Fix action là `[hành động khôi phục]`; preventive measure là `[alert/runbook/test/guardrail để ngăn tái diễn]`."
+- **Challenge ID:** `day13-k4-l3b-monitoring-llmops-v1` (cohort K4, feature `monitoring`).
+- **Khoảng thời gian điều tra:** `2026-09-30 05:40:17–05:40:30 UTC` (`12:40:17–12:40:30 ICT`).
+- **Triệu chứng từ metrics:** Cả 5 request challenge có application latency `2652–2653 ms`, vượt ngưỡng riêng của challenge `2000 ms`; P95 của workload là `2653 ms`, cao hơn baseline P95 `1445 ms` khoảng 84%. TTFT P95 vẫn là `50 ms`, error rate là `0%` và retrieval success là `100%`, nên đây là latency spike trước generation chứ không phải lỗi request hay model chậm. Client quan sát end-to-end `7991–13316 ms` khi chạy concurrency 5 vì các request đồng bộ bị xếp hàng, làm ảnh hưởng người dùng còn rõ hơn application latency từng request.
+- **Log line và correlation ID liên quan:** Dòng `response_sent` lúc `2026-09-30T05:40:19.909128Z` có `correlation_id=req-b3ed9f23`, `feature=monitoring`, `latency_ms=2653`, `ttft_ms=50`, `tool_name=retrieval`, `tool_success=true`. Bốn request cùng incident là `req-cbbd553d`, `req-025b663c`, `req-cf044367`, `req-9f5e24a7`.
+- **Trace ID và span gây ảnh hưởng:** Trace `42711d808987b9896634daa08535e271` khớp request `req-b3ed9f23` theo timestamp/correlation metadata. Root `lab-agent-run` mất `2.654 s`; child `knowledge-retrieval` mất `2.501 s`, trong khi `fake-llm-generation` chỉ mất `0.152 s`. Span gây ảnh hưởng là `knowledge-retrieval`.
+- **Root cause:** Challenge bật scenario `rag_slow`; đường retrieval bị thêm độ trễ khoảng `2.5 s`. Chuỗi evidence nhất quán: metric tăng latency nhưng TTFT/error không tăng → log chọn request `req-b3ed9f23` → trace cho thấy gần như toàn bộ thời gian nằm trong child retrieval.
+- **Fix action:** Đã tắt scenario bằng `python scripts/inject_incident.py --disable`; health check xác nhận `rag_slow=false`. Năm canary sau mitigation có application latency `151–152 ms` (client end-to-end `325–803 ms` ở concurrency 5), trở về dưới baseline và ngưỡng challenge.
+- **Preventive measure:** Bổ sung SLI/alert riêng cho latency của span `knowledge-retrieval` (cảnh báo khi P95 vượt `2000 ms`), timeout/circuit breaker và fallback an toàn cho vector store, đồng thời thêm regression load test kiểm tra retrieval latency. Giữ runbook Metrics → Logs → Traces để alert luôn dẫn tới correlation ID và trace cụ thể.
 
 ## 8. Giải thích và tự đánh giá
 
@@ -98,14 +94,14 @@
 - **Cách hiểu luồng Metrics → Logs → Traces:** Metrics cho biết loại triệu chứng và khoảng thời gian bất thường; structured log thu hẹp xuống request cụ thể bằng `correlation_id`; trace cùng ID cho thấy retrieval hay generation là bước chậm/lỗi. Root cause chỉ được kết luận khi ba lớp evidence cùng khớp.
 - **Vai trò của prompt version, token/cost, SLO hoặc rollback trong vận hành LLM:** Prompt version giúp gắn chất lượng, latency, token và cost với đúng thay đổi. Token/cost phát hiện prompt dài hoặc output tăng bất thường; SLO xác định mức dịch vụ chấp nhận được; label `production` cho phép deploy hoặc rollback prompt mà không sửa code.
 - **Điều quan trọng nhất đã học:** Observability hữu ích khi các tín hiệu liên kết được với nhau. Một dashboard đẹp hoặc một trace chi tiết riêng lẻ chưa đủ nếu không thể đi từ metric tới log và trace của cùng request.
-- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** CP3 chưa được điền vì chưa có chuỗi evidence challenge chính thức; pytest cuối, commit SHA cuối và evidence `01`, `12`–`14` sẽ được bổ sung ở CP4 sau khi hoàn tất incident.
+- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** Các phần code, điều tra CP3, report và evidence bắt buộc đã hoàn thành. Commit SHA cuối sẽ được điền/nộp sau khi tạo commit chứa report và toàn bộ evidence; ảnh incident trace nên được chụp lại với trường `correlation_id` hiển thị trong Attributes để mối nối log → trace hiện trực tiếp trong cùng evidence.
 
 ## 9. Checklist trước khi nộp
 
 - [ ] Kết quả và evidence thuộc commit SHA cuối.
-- [ ] Tất cả ảnh/output mở được bằng đường dẫn tương đối.
+- [x] Tất cả ảnh/output mở được bằng đường dẫn tương đối.
 - [ ] Incident evidence nối đúng metric → log → trace.
-- [ ] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
-- [ ] Repository chạy lại được theo README.
-- [ ] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
+- [x] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
+- [x] Repository chạy lại được theo README.
+- [x] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
 - [ ] URL repo và commit SHA cuối đã được nộp trên LMS/Codelabs.

@@ -7,6 +7,8 @@ data/audit.jsonl
 .env
 # Lab Coach gửi riêng khi bắt đầu CP3; tuyệt đối không commit/push.
 config/challenge.json
+# Also protect coach-provided challenge files before they are normalized to
+# config/challenge.json. These files are private grading inputs.
+config/*challenge*.json
 .pytest_cache/
 .antigravity/
-config/K4-L3B-challenge.json
