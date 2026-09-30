@@ -1,13 +1,18 @@
 service: day13-l3b-monitoring-llmops-lab
 primary_slo:
   name: fast_successful_requests
+  description: Tỷ lệ request nhận được phản hồi thành công trong không quá 3000 ms.
   window: 28d
   sli:
     good_event: 'event == "response_sent" and latency_ms <= 3000'
     total_event: 'event == "request_received"'
   target_percent: 99.5
   error_budget_percent: 0.5
-  note: Học viên phải giải thích hoặc điều chỉnh ngưỡng bằng baseline của mình. Ví dụ nếu có 10,000 request trong cửa sổ 28 ngày, error budget 0.5% nghĩa là tối đa 50 request được phép không đạt SLO.
+  rationale: Ngưỡng 3000 ms cao hơn latency P95 baseline 1445 ms và kết quả CP2 1796 ms, nên có khoảng đệm cho tail latency nhưng vẫn phản ánh thời gian chờ có ảnh hưởng tới người dùng.
+  error_budget_example:
+    total_requests: 10000
+    allowed_bad_requests: 50
+    calculation: '10000 * (100 - 99.5) / 100 = 50'
 guardrails:
   error_rate_pct_max: 2
   daily_cost_usd_max: 2.5
