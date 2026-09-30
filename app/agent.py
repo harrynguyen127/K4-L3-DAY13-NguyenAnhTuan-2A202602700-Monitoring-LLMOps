@@ -3,11 +3,12 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 from . import metrics
 from .mock_llm import FakeLLM
 from .mock_rag import retrieve
-from .pii import hash_user_id, summarize_text
+from .pii import hash_user_id, scrub_text, summarize_text
 from .prompt_management import resolve_prompt
 from .tracing import get_langfuse_client, observe, propagate_attributes, tracing_enabled
 
@@ -51,7 +52,26 @@ class LabAgent:
             },
         ):
             started = time.perf_counter()
-            docs = retrieve(message)
+            langfuse_client.update_current_span(
+                input={
+                    "feature": feature,
+                    "message_preview": summarize_text(message),
+                }
+            )
+            with langfuse_client.start_as_current_observation(
+                name="knowledge-retrieval",
+                as_type="retriever",
+                input={"query_preview": summarize_text(message)},
+                metadata={"feature": feature},
+            ) as retrieval_observation:
+                docs = retrieve(message)
+                retrieval_observation.update(
+                    output={
+                        "document_count": len(docs),
+                        "document_previews": [summarize_text(doc) for doc in docs],
+                    },
+                    metadata={"matched": bool(docs)},
+                )
             prompt = resolve_prompt(
                 langfuse_client,
                 feature=feature,
@@ -71,13 +91,64 @@ class LabAgent:
                 },
                 version=prompt.version,
             )
-            # TODO (CP2): instrument retrieve() and FakeLLM.generate() as child
-            # observations. The nested generation must receive prompt, usage and cost.
             with propagate_attributes(prompt=prompt.managed_prompt):
-                response = self.llm.generate(prompt.text)
+                generation_started_at = datetime.now(timezone.utc)
+                with langfuse_client.start_as_current_observation(
+                    name="fake-llm-generation",
+                    as_type="generation",
+                    model=self.model,
+                    input={
+                        "feature": feature,
+                        "prompt_preview": summarize_text(scrub_text(prompt.text)),
+                    },
+                    metadata={
+                        "prompt_name": prompt.name,
+                        "prompt_label": prompt.label,
+                        "prompt_version": prompt.version,
+                        "prompt_source": prompt.source,
+                    },
+                    prompt=prompt.managed_prompt,
+                ) as generation:
+                    response = self.llm.generate(prompt.text)
+                    input_cost = (response.usage.input_tokens / 1_000_000) * 3
+                    output_cost = (response.usage.output_tokens / 1_000_000) * 15
+                    generation.update(
+                        output={"answer_preview": summarize_text(response.text)},
+                        completion_start_time=generation_started_at
+                        + timedelta(milliseconds=response.ttft_ms),
+                        usage_details={
+                            "input": response.usage.input_tokens,
+                            "output": response.usage.output_tokens,
+                            "total": response.usage.input_tokens
+                            + response.usage.output_tokens,
+                        },
+                        cost_details={
+                            "input": input_cost,
+                            "output": output_cost,
+                            "total": input_cost + output_cost,
+                        },
+                        metadata={"ttft_ms": response.ttft_ms},
+                    )
             quality_score = self._heuristic_quality(message, response.text, docs)
             latency_ms = int((time.perf_counter() - started) * 1000)
             cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)
+            langfuse_client.update_current_span(
+                output={"answer_preview": summarize_text(response.text)},
+                metadata={
+                    "doc_count": len(docs),
+                    "query_preview": summarize_text(message),
+                    "prompt_name": prompt.name,
+                    "prompt_label": prompt.label,
+                    "prompt_version": prompt.version,
+                    "prompt_source": prompt.source,
+                    "prompt_fetch_error": prompt.fetch_error or "",
+                    "latency_ms": latency_ms,
+                    "ttft_ms": response.ttft_ms,
+                    "quality_score": quality_score,
+                    "cost_usd": cost_usd,
+                },
+                version=prompt.version,
+            )
 
         metrics.record_request(
             latency_ms=latency_ms,

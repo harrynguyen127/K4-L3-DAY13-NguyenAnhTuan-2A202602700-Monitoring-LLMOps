@@ -16,16 +16,32 @@ class ManagedPrompt:
         )
 
 
+class RecordingObservation:
+    def __init__(self, attributes: dict) -> None:
+        self.attributes = attributes
+        self.updates: list[dict] = []
+
+    def update(self, **kwargs) -> None:
+        self.updates.append(kwargs)
+
+
 class RecordingLangfuseClient:
     def __init__(self) -> None:
         self.prompt = ManagedPrompt()
         self.span_updates: list[dict] = []
+        self.observations: list[RecordingObservation] = []
 
     def get_prompt(self, name: str, **kwargs):
         return self.prompt
 
     def update_current_span(self, **kwargs) -> None:
         self.span_updates.append(kwargs)
+
+    @contextmanager
+    def start_as_current_observation(self, **kwargs):
+        observation = RecordingObservation(kwargs)
+        self.observations.append(observation)
+        yield observation
 
 
 def test_agent_records_prompt_version_with_v4_observation_api(monkeypatch) -> None:
@@ -54,7 +70,7 @@ def test_agent_records_prompt_version_with_v4_observation_api(monkeypatch) -> No
         correlation_id="req-12345678",
     )
 
-    span_update = client.span_updates[-1]
+    span_update = next(update for update in client.span_updates if update.get("version") == "3")
     assert span_update["metadata"] == {
         "doc_count": 1,
         "query_preview": "Explain traces",
@@ -67,3 +83,13 @@ def test_agent_records_prompt_version_with_v4_observation_api(monkeypatch) -> No
     assert span_update["version"] == "3"
     assert propagated[0]["metadata"]["correlation_id"] == "req-12345678"
     assert propagated[-1]["prompt"] is client.prompt
+
+    retrieval, generation = client.observations
+    assert retrieval.attributes["as_type"] == "retriever"
+    assert retrieval.updates[-1]["output"]["document_count"] == 1
+    assert generation.attributes["as_type"] == "generation"
+    assert generation.attributes["model"] == agent.model
+    assert generation.attributes["prompt"] is client.prompt
+    assert generation.updates[-1]["usage_details"]["input"] > 0
+    assert generation.updates[-1]["usage_details"]["output"] > 0
+    assert generation.updates[-1]["cost_details"]["total"] > 0

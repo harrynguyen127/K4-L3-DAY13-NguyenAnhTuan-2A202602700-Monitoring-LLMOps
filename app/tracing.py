@@ -18,10 +18,20 @@ except ImportError:  # pragma: no cover - chỉ dùng khi chưa cài requirement
         return decorator
 
     class _DummyClient:
+        @contextmanager
+        def start_as_current_observation(self, **kwargs: Any):
+            yield self
+
+        def update(self, **kwargs: Any) -> None:
+            return None
+
         def update_current_span(self, **kwargs: Any) -> None:
             return None
 
         def update_current_generation(self, **kwargs: Any) -> None:
+            return None
+
+        def flush(self) -> None:
             return None
 
     def get_client():
@@ -34,6 +44,12 @@ except ImportError:  # pragma: no cover - chỉ dùng khi chưa cài requirement
 
 def get_langfuse_client():
     return get_client()
+
+
+def flush_langfuse() -> None:
+    """Deliver queued observations before a short-lived process exits."""
+    if tracing_enabled():
+        get_langfuse_client().flush()
 
 
 def tracing_enabled() -> bool:

@@ -4,13 +4,13 @@
 
 ## 1. Thông tin học viên
 
-- **Họ và tên:**
-- **MSSV:**
+- **Họ và tên:** Nguyễn Anh Tuấn
+- **MSSV:** 2A202602700
 - **Lớp:** K4-L3B
-- **Repository URL:**
+- **Repository URL:** https://github.com/harrynguyen127/K4-L3-DAY13-NguyenAnhTuan-2A202602700-Monitoring-LLMOps
 - **Commit SHA cuối:**
 - **Challenge ID:**
-- **Tên project Langfuse cá nhân:** `day13-k4-l3b-<MSSV>`
+- **Tên project Langfuse cá nhân:** `day13-k4-l3b-2A202602700`
 
 ## 2. Evidence index
 
@@ -18,39 +18,41 @@
 
 | Evidence | Đường dẫn |
 |---|---|
-| Pytest cuối | `evidence/01-pytest.png` |
-| Log validator | `evidence/02-log-validator.png` |
-| Dashboard validator | `evidence/03-dashboard-validator.png` |
-| Structured log | `evidence/04-structured-log.png` |
-| PII redaction | `evidence/05-pii-redaction.png` |
-| Trace list | `evidence/06-trace-list.png` |
-| Trace waterfall | `evidence/07-trace-waterfall.png` |
-| Trace metadata | `evidence/08-trace-metadata.png` |
-| Prompt versions | `evidence/09-prompt-versions.png` |
-| Prompt rollback | `evidence/10-prompt-rollback.png` |
-| Dashboard runtime | `evidence/11-dashboard-overview.png` |
-| Incident metric | `evidence/12-incident-metric.png` |
-| Incident log | `evidence/13-incident-log.png` |
-| Incident trace | `evidence/14-incident-trace.png` |
+| CP0 health check | [cp0-health-check.png](evidence/cp0-health-check.png) |
+| CP0 baseline log validator | [cp0-baseline-log-validator.png](evidence/cp0-baseline-log-validator.png) |
+| Pytest cuối | Chưa bổ sung |
+| Log validator | [02-log-validator.png](evidence/02-log-validator.png) |
+| Dashboard validator | Chưa bổ sung |
+| Structured log | [04-structured-log.png](evidence/04-structured-log.png) |
+| PII redaction | [05-pii-redaction.png](evidence/05-pii-redaction.png) |
+| Trace list | Chưa bổ sung |
+| Trace waterfall | Chưa bổ sung |
+| Trace metadata | Chưa bổ sung |
+| Prompt versions | Chưa bổ sung |
+| Prompt rollback | Chưa bổ sung |
+| Dashboard runtime | Chưa bổ sung |
+| Incident metric | Chưa bổ sung |
+| Incident log | Chưa bổ sung |
+| Incident trace | Chưa bổ sung |
 
 ## 3. Kết quả kỹ thuật
 
 | Nội dung | Baseline | Kết quả cuối | Nhận xét |
 |---|---|---|---|
-| `validate_logs.py` | | | |
-| `validate_dashboard.py` | | | |
-| `pytest` | | | |
-| Số traces hợp lệ | | | |
-| Số PII leak | | | |
-| Latency P95 / TTFT P95 | | | |
-| Retrieval success rate | | | |
+| `validate_logs.py` | 30/100 | 100/100 | Baseline: 28 records, 20 records thiếu required fields/enrichment và 0 correlation ID. CP1: 60 records, không thiếu field/enrichment, 30 correlation ID duy nhất và 0 PII leak. |
+| `validate_dashboard.py` | 6/6 panel | Chưa đo | Contract YAML hợp lệ nhưng chưa chứng minh dashboard runtime |
+| `pytest` | 22 passed, 0 failed | Chưa đo | Public tests đạt tại thời điểm đo baseline |
+| Số traces hợp lệ | 0 trace đạt đầy đủ rubric | Chưa đo | Starter chỉ có root observation; chưa đủ root/retrieval/generation |
+| Số PII leak | 0 | 0 | Validator không phát hiện PII thô; log runtime cho thấy email, điện thoại Việt Nam và thẻ thanh toán đã được thay bằng marker `REDACTED`. |
+| Latency P95 / TTFT P95 | 1445 ms / 123 ms | Chưa đo | Tính trên 10 sự kiện `response_sent` trong log baseline |
+| Retrieval success rate | 100% (10/10) | Chưa đo | Chưa bật incident; tất cả retrieval được ghi nhận thành công |
 
 ## 4. Logging và PII
 
-- **Cách tạo/nhận và truyền correlation ID:**
-- **Các metadata được ghi vào structured log:**
-- **Cách bảo đảm PII được scrub trước khi ghi:**
-- **Cách kiểm chứng kết quả:**
+- **Cách tạo/nhận và truyền correlation ID:** Middleware xóa context của request trước, nhận `x-request-id` từ header hoặc sinh ID dạng `req-<8-hex>`, bind ID vào context, lưu vào `request.state` và trả lại qua response header.
+- **Các metadata được ghi vào structured log:** `ts`, `event`, `correlation_id`, `user_id_hash`, `session_id`, `feature`, `model`, `env`; log phản hồi còn có latency, TTFT, token và cost.
+- **Cách bảo đảm PII được scrub trước khi ghi:** Processor `scrub_event` chạy trước `JsonlFileProcessor` và JSON renderer, thay email, số điện thoại Việt Nam, CCCD và thẻ thanh toán bằng marker `REDACTED` trước khi ghi file.
+- **Cách kiểm chứng kết quả:** [Log validator đạt 100/100](evidence/02-log-validator.png), [structured log có đủ metadata runtime](evidence/04-structured-log.png), và [log PII đã được redact](evidence/05-pii-redaction.png).
 
 ## 5. Tracing và prompt versioning
 
